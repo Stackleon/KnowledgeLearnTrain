@@ -1,0 +1,132 @@
+Android Bluetooth
+AdapterService.java :: enable() // 从BluetoothService 调过来的
+
+    AdapterState:: sendMessage(BLE_TURN_ON)  // 当前状态机处于 OffState
+	
+	    AdapterState::OffState::processMessage()  // 状态迁移到TurningBleOnState
+		
+		    AdapterState::TurningBleOnState::enter() //
+                
+				AdapterService::bringUpBle()
+				    
+					AdapterService::setProfileServiceState(GattService.class, BluetoothAdapter.STATE_ON) // 启动GattService ble 服务类
+					                                                                                     // intent.putExtra(BluetoothAdapter.EXTRA_STATE, state);
+
+
+
+GattService::onStartCommand() // GattService 继承于 ProfileService  BluetoothService各个Profile都继承于它
+    
+	GattService::doStart()
+	    
+		AdapterService::onProfileServiceStateChanged(this, BluetoothAdapter.STATE_ON);  //GattService 这个对象作为参数传入
+		
+		    AdapterService::AdapterServiceHandler::handleMessage()   // 此处的message what = MESSAGE_PROFILE_SERVICE_STATE_CHANGED 
+			
+			    AdapterService::AdapterServiceHandler::processProfileServiceStateChanged() // 判断是GattService
+				    
+					AdapterService::enableNativeWithGuestFlag()
+					    
+						com_android_bluetooth_btservice_AdapterSevice.cpp::enableNative()
+					
+					        bluetooth.cc::enable()
+							    
+								stack_manager.cc::start_up_stack_async()  //开启新的线程初始化Bluetooth 协议栈
+						
+						
+start_manager.cc::event_start_up_stack()  // future_await(local_hack_future) != FUTURE_SUCCESS  完成协议栈初始化之前会一直wait在这里，等协议栈初始化完成会唤醒 local_hack_future这把锁。
+    
+	bte_main.cc::bte_main_enable() 
+	    
+		btsnoop.cc::start_up() // btsnoop log 是否记录						    
+								
+		hci_layer.cc::hci_module_start_up()  // hci层初始化
+		
+		btu_init.cc::BTU_StartUp()   // 创建一个 “bt_workqueue” 线程开始初始化
+		
+btu_task.cc::btu_task_start_up()
+     
+	btu_init.cc::btu_init_core()
+
+		btm_main.cc::btm_init()     // 初始化btm_cb 结构体主要负责bt manager (设备相关， Inquiry / Page / Security / acl 链路管理)
+		                            // Inquiry的模式  Inquiry Scan / Inquiry    Inquiry Window / Inquiry Interval Window
+									
+		l2c_main.cc::l2c_init()     // tL2C_CB 结构体 主要负责ACL 链路  （L2CAP基于ACL链路） L2CAP 连路，配置
+		
+		sdp_main.cc::sdp_init()     //tSDP_CB 结构体负责SDP相关的业务
+		        l2c_api.cc::L2CA_Register(SDP_PSM, &sdp_cb.reg_info)  // 向L2CAP注册PSM ，在发起L2CAP链路连接的时候需要此PSM作为参数
+				                                                    Upper layer : 1 Request   Confirm        2 Response     Indication 
+																		              |           |                |             |
+																		              |           |                |             |
+																	L2CAP layer : 1 Request   Confirm        2 Response     Indication
+							                                                          |           |                |             |
+                                                                                      |		      |			  	   |	         |													
+																	Lower layer       |_ _ _ _ _ _|_ _ _ _ _ _ _ _ |_ _ _ _ _ _ _|
+                                                                                                  |                |
+                                                                                                  |_ _ _ _ _ _ _ _ |																						
+																	
+																	如上的图所示  1 发起 Request   到2 对应是 Indication
+                                                                                  2 回复 Response  到1 对应是 Confirm	
+																	Connection -> Configuration ->  Disconnect ,所以 sdp_cd.reg_info 是从L2CAP层对各个状态的回调
+    
+    bte_init.cc::BTE_InitStack()
+	    port_api.cc::RFCOMM_Init()
+		    rfc_l2cap_if.cc::rfcomm_l2cap_if_init()  //L2CA_Register(BT_PSM_RFCOMM, p_l2c); rfcomm 层向l2cap层注册各个状态的回调
+	    
+	bta_sys_main.cc::bta_sys_init()  // tBTA_SYS_CB 结构体代表 BTA 层， 上面的 btif  下面对接 btm
+        bta_sys_main.cc::bta_sys_register(BTA_ID_SYS, &bta_sys_hw_reg) // 	bta_sys_register 后续其他的协议也会调用，该机制有点像 Android Handle。但实现的效果像状态机的切换
+		                                                               //   例如 BTA_ID_SYS 表示 Bluetooth Stack未初始化的状态，后续还有 enable-> enabled -> stack enabled
+																	   //   bta_sys_hw_reg 是状态切入的主入口，从这里再到各个状态实际处理的方法。
+		
+		btm_devctl.cc::BTM_RegisterForDeviceStatusNotif(&bta_sys_hw_btm_cback) // 当Controller层初始化完成后，会回调bta_sys_hw_btm_cback。 是在btm_devctl.cc  reset_complete() 方法中。
+
+btu_task.cc::btu_message_loop_run()		// 这里又起了一个 "btu message loop" , 这个消息处理的线程。 从uart过来的消息都是在这个线程中处理 详见同文件中 btu_hci_msg_process()
+                                       
+
+btif_core.cc::btif_init_ok()  // jni线程
+    bta_dm_api.cc::BTA_EnableBluetooth(bte_dm_evt)   // bluedroid  严格按照 btif -> bta -> btm (other profile) 层级来的
+                                                     // bte_dm_evt 是从bta 层的回调
+        bta_sys_main.cc::bta_sys_register(BTA_ID_DM_SEARCH, &bta_dm_search_reg);	// 注册跟Bluetooth Search 方法和状态机
+        
+        		
+bta_dm_atc.cc::bta_dm_enable()  // bta线程
+                            
+    bta_sys_main.cc::bta_sys_hw_register(BTA_SYS_HW_BLUETOOTH, bta_dm_sys_hw_cback);	// 跟Bluetooth 初始化相关的回调
+  
+    // 这里对 单独行代码说明  bta_dm_cb.p_sec_cback = p_sec_cback;  这里把 btif 层的回调赋给 bta_dm_cb 结构体，bta_dm_cb  负责 bta和 dm 交互
+	
+	bta_sys_main.cc::bta_sys_sendmsg(BTA_SYS_API_ENABLE_EVT) // 很迷惑的地方到了，重点在BTA_SYS_API_ENABLE_EVT
+                                                             // 这个枚举定义等于 BTA_ID_SYS	左移 8位， 然后 bta_sys_event 方法里面 再右移 8位。找到其标定的ID
+															 // 然后根据ID 从bta_sys_cb.reg 中取回对应 tBTA_SYS_REG。 其实就是  bta_sys_register(BTA_ID_SYS, &bta_sys_hw_reg)
+	
+	bta_sys_main.cc::bta_sys_hw_api_enable()   // 这个跳转，我单独开篇讲，这里不再详细说明过程。				
+	
+	bta_sys_main.cc::bta_sys_hw_evt_enabled()
+	
+	btm_devctl.cc::BTM_DeviceReset()
+	    
+		controller.cc::start_up()  // 这里发送HCI Command开始初始化Controller。
+		                           // Reset /  Local Address / Feature 都是在这里初始化的。
+			
+			btm_devctl.cc::reset_complete()
+			    btm_devctl.cc::btm_report_device_status()    //btm_devctl.cc::BTM_RegisterForDeviceStatusNotif(&bta_sys_hw_btm_cback)
+				    bta_sys_main.cc::bta_sys_hw_btm_cback()  // 从btm 层到 bta层
+                        bta_dm_act.cc::bta_dm_sys_hw_cback()  //bta_sys_main.cc::bta_sys_hw_register(BTA_SYS_HW_BLUETOOTH, bta_dm_sys_hw_cback)
+                            
+                            btm_devctl.cc::BTM_SetDeviceClass()  // 设置COD class of device 不过上层也有接口更改
+                            
+                            btm_sec.cc::BTM_SecRegister(&bta_security)  // 安全  Link Key / 认证  回调
+                            ...
+                            
+                            btm_devctl.cc::BTM_ReadLocalDeviceNameFromController(bta_dm_local_name_cback); // 发送hci command 从 Controller读取 蓝牙名称
+                                                                                                           // 读取完成后 回调bta_dm_local_name_cback。							
+					            bta_dm_act.cc::bta_dm_local_name_cback()
+								    
+									btif_core::bte_dm_evt(BTA_DM_ENABLE_EVT)       // bta_dm_api.cc::BTA_EnableBluetooth(bte_dm_evt)
+		                                                                           // 从bta -> btif
+btif_dm.cc::btif_dm_upstreams_evt()
+    bta_dm_api.cc::BTA_DmSetDeviceName()  //从 bt_config 中取出蓝牙名称，并设置
+    
+    btif_dm.cc::btif_storage_load_bonded_devices()  // 从bt_config 中取回 配对信息	
+		 
+		    
+	
