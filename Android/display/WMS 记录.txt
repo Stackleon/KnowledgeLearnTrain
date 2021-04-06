@@ -1,0 +1,16 @@
+WindowSurfaceController  持有 SurfaceSession  . SurfaceSession  持有 SurfaceControl
+
+
+
+WindowManagerService 中的DisplayContent  代表着一个屏幕？
+
+
+
+
+
+ActivityManagerService     WindowManagerService        
+
+ActivityRecord  在 WindowManagerService 中等同与 AppWindowToken    
+
+
+WindowState 代表一个Surface 既Activity 显示的窗口  

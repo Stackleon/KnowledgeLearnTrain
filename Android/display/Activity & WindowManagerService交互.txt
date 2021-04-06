@@ -1,0 +1,54 @@
+Activity & WindowManagerService 交互
+
+追溯 Activity & WindowManagerService 之间的关系，我们从 ActivityThread.java  performLaunchActivity() 开始
+
+ActivityThread.java::performLaunchActivity()   // createBaseContextForActivity() 此处更改了 displayId **
+   
+   Activity.java::attach()  // 注意此处传进来的IBinder token 其实就是 AMS侧 ActivityRecord中的 appToken
+                            // PhoneWindow 并不是正真的Window，但是确实Activity中代表 窗口的实际对象 ， PhoneWindow 也持有 appToken, 后续会用到此appToken和 WMS交互
+							// PhoneWindow 中持有的WindowManageImpl 看似是和 WindowManagerService 交互接口，但其所有的业务由内部的 WindowManagerGlobal 实现
+
+							
+ActivityThread.java::handleResumeActivity()  //  WindowManager.LayoutParams l = r.window.getAttributes();
+                                             //  a.mDecor = decor;
+                                             //  l.type = WindowManager.LayoutParams.TYPE_BASE_APPLICATION(值为1); 
+    
+	PhoneWindow.java::getDecorView()         //  初始化DecorView DecorView继承于 FrameLayout
+        
+	WindowManagerImpl.java::addView()
+	    WindowManagerGlobal.java::addView()
+		    
+			new ViewRootImpl()  // 画面的承载者 里面由一块Surface   此处传进的display 跟 createBaseContextForActivity一致
+			    // 内部 mWindowSession 是用于和WindowManagerService进行通讯
+			
+		        ViewRootImpl.java::setView()  // SurfaceHolder
+				   
+				    ViewRootImpl.java::requestLayout() // mLayoutRequested = true;
+					
+					    ViewRootImpl.java::scheduleTraversals()  //  mTraversalBarrier = mHandler.getLooper().getQueue().postSyncBarrier();  扔到 Choregrapher 中等 SurfaceFlinger VSYNC信号过来
+						                                         //  所以先执行 addToDisplay 
+						  
+						    ViewRootImpl.java::TraversalRunnable::run()
+							   
+							    ViewRootImpl.java::doTraversal()  //  mHandler.getLooper().getQueue().removeSyncBarrier(mTraversalBarrier);
+								
+								    ViewRootImpl.java::performTraversals()  //
+									
+								        ViewRootImpl.java::relayoutWindow()  
+										
+										    WindowManagerService.java::relayoutWindow()
+											
+											    
+											
+					
+					IWindowSession::addToDisplay()
+					    
+						WindowManagerService.java::addWindow()  // RootWindowContainer  DisplayContent  DisplayWindowController      WindowStateAnimator 负责Surface操作，作为WindowState的属性
+						                                        // WindowToken 持有 DisplayContent
+																// WindowState 持有 WindowToken  
+																
+																WindowState 中持有的非常重要的信息
+					
+                            WindowState.java::attach()
+					
+        	

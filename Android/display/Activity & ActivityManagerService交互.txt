@@ -1,0 +1,218 @@
+ContextImpl.java::startActivity()
+--------------------------------------------------------------------  system_server process --------------------------------------------------------
+1 ActivityManagerService.java | startActivityAsUser()  这个方法有IApplicationThread, callingPackage 表示启动其他应用的进程
+                               ActivityStartController.obtainStarter(intent, "startActivityAsUser")  获取一个ActivityStart, 这个负责启动Activity的业务。
+
+							   分析一下这个 ActivityStarter。  像一个业务执行者，负责启动一个Activity从头到尾。
+							   ActivityStartController 是负责创建ActivityStarter.  内部有个mFactory 类似于工厂模式，默认是 DefaultFactory (ActivityStarter 的静态内部类)
+							   DefaultFactory 内部有ActivityManagerService & ActivityStackSupervisor的实例，其内部有一个ActivityStarter池
+							   private SynchronizedPool<ActivityStarter> mStarterPool = new SynchronizedPool<>(MAX_STARTER_COUNT);  // MAX_STARTER_COUNT = 3；
+							   
+							    @Override
+                                public ActivityStarter obtain() {
+                                    ActivityStarter starter = mStarterPool.acquire();
+
+                                    if (starter == null) {
+                                        starter = new ActivityStarter(mController, mService, mSupervisor, mInterceptor);
+                                    }
+
+                                    return starter;
+                                }
+							    
+								ActivityStarter 内部有个Request记录此次启动的应用的信息。
+								
+    1.2 ActivityStarter.java | execute()                
+                              //setMayWait() 会将 mRequest.mayWait = true;
+						
+    1.3 ActivityStarter.java | startActivityMayWait()   TaskRecord /  AcivityStack / ActivityRecord / ActivityDisplay
+	              
+						ActivityStarter.java::startActivity()  //
+	                    
+						ActivityStarter.java::startActivity()   // 创建新的  ActivityRecord.
+						
+						ActivityStarter.java::startActivity()   // 传进来的参数 doResume = true
+						
+						ActivityStarter.java::startActivityUnchecked()  // 到这里开始真正准备启动一个Activity，前面的startActivity 都是其他case的判断
+						    
+                            ActivityStarter.java::setInitialState()     // getPreferedDisplayId() 可以在传入的option中设置DisplayId (ActivityOptions)
+							                                            // FEATURE_ACTIVITIES_ON_SECONDARY_DISPLAYS
+																		// String KEY_LAUNCH_DISPLAY_ID = "android.activity.launchDisplayId
+																		
+							ActivityStarter.java::setTaskFromReuseOrCreateNewTask()
+							
+							    ActivityStarter.java::computeStackFocus()
+								   // if (mPreferredDisplayId != DEFAULT_DISPLAY)  追到ActivityStackSupervisor.java::canPlaceEntityOnDisplay()  mService.mSupportsMultiDisplay
+								   // 从ActivityDisplay 查找合适的 ActivityStack
+								
+								
+								    
+
+						ActivityStackSupervisor.java::resumeFocusedStackTopActivityLocked()
+						
+					    ActivityStack.java::resumeTopActivityUncheckedLocked()
+						
+						ActivityStack.java::resumeTopActivityInnerLocked()
+						
+						ActivityStackSupervisor.java::startSpecificActivityLocked();
+						此处有两个分支，一个是启动一个应用进程，一个在存在的进程中启动一个Activity。 标识1
+						
+						if (app != null && app.thread != null) {
+                            try {
+                                if ((r.info.flags&activityinfo.flag_multiprocess) == 0
+                                    || !"android".equals(r.info.packagename)) {
+                                // don't add this if it is a platform component that is marked
+                                // to run in multiple processes, because this is actually
+                                // part of the framework so doesn't make sense to track as a
+                                // separate apk in the process.
+                                app.addpackage(r.info.packagename, r.info.applicationinfo.longversioncode,
+                                            mservice.mprocessstats);
+                                }
+                                realstartactivitylocked(r, app, andresume, checkconfig);  
+                                return;
+                            } catch (remoteexception e) {
+                                slog.w(tag, "exception when starting activity "
+                                + r.intent.getcomponent().flattentoshortstring(), e);
+                            }
+
+                            // if a dead object exception was thrown -- fall through to
+                            // restart the application.
+                        }
+
+                        mservice.startprocesslocked(r.processname, r.info.applicationinfo, true, 0,
+                            "activity", r.intent.getcomponent(), false, false, true);    // 和zygote通讯启动一个进程
+						
+						//r.processname 是应用的进程名。
+						
+	                    ActivityManagerService.java::startProcessLocked()
+                        ActivityManagerService.java::startProcessLocked() //  其方法内部会调用newProcessRecordLocked() 创建一个ProcessRecord
+                        ActivityManagerService.java::startProcessLocked() 
+                        ActivityManagerService.java::startProcessLocked()  //final String entryPoint = "android.app.ActivityThread";
+						ActivityManagerService.java::startProcessLocked()
+						ActivityManagerService.java::startProcess()
+						
+						
+						startResult = Process.start(entryPoint,
+                                app.processName, uid, uid, gids, runtimeFlags, mountExternal,
+                                app.info.targetSdkVersion, seInfo, requiredAbi, instructionSet,
+                                app.info.dataDir, invokeWith,
+                                new String[] {PROC_START_SEQ_IDENT + app.startSeq});  //在后续的App 调用attachApplication方法中，会传入此seq.
+						
+						Process.java::start()
+						ZygoteProcess.java::start();
+						ZygoteProcess.java::startViaZygote()  // primaryZygoteState = ZygoteState.connect(mSocket); 连上Zygote进程的socket。 
+						ZygoteProcess.java::zygoteSendArgsAndGetResult()  //通过socket发送消息给Zygote 进程。
+						
+---------------------------------------------------------------------------  Zygote Process --------------------------------------------------------------------------------
+        在Android操作系统起来是时候，init进程就会拉起Zygote，其初始化过程先不做显示的说明，简述一个
+        Zygote进程起来的时候会初始化一个JVM （ART Dalivk等），初始化JNI环境，然后通过JNI进入Java世界，(AndroidRuntime.cpp)进入Java世界的第一个类就是ZygoteInit.java
+
+        ZygoteInit.java::main()	// 1 启动一个socket server，2 启动system_server进程， 3 监听此socket fd，是否有AMS连接上。
+
+		ZygoteServer.java::runSelectLoop() // poll 监听 socket server fd，是否有AMS连接上。 当AMS连接上后会创建一个ZygoteConnection，同时将socket加入 poll监听，监听是否有消息发过来。
+		
+		
+		ZygoteConnection.java::processOneCommand() //接受到AMS发送过来的消息。
+		                    Zygote.java::forkAndSpecialize() //fork一个新的进程
+							//等fork完成，此时子进程等同于拷贝了一份，包括socket资源， 内核中的pcb等，最重要的是拷贝了JVM环境。
+							//所以在子进程中会设置 mIsForkChild = true; 关闭监听AMS消息的socket。
+							
+----------------------------------------------------------------------------   App Process   ------------------------------------------------------------------------------------
+							ZygoteConnection.java::handleChildProc()
+							                ZygoteInit.java::childZygoteInit()  
+											RuntimeInit.java::findStaticMain()  // 通过Java 反射找到 "android.app.ActivityThread.java::main()" 方法。然后return 一个Runable()
+						//processOneCommand 子进程会返回一个command, 父进程返回的是null。 所以子进程会退出 runSelectLoop.但是父进程仍然继续监听AMS的消息。
+		RuntimeInit.java::MethodAndArgsCaller::run() // 执行android.app.ActivityThread.java::main()
+        
+		
+		
+		****************    正式进入App环境
+		ActivityThread.java::main()  // ActivityThread 不是一个线程，但是代表了主线程。 
+		                             // ApplicationThread extends IApplicationThread.Stub 主要用于和AMS进行同行的binder。
+		                             // H 代表主线程的Handler，其实例对象sMainThreadHandler
+		               ActivityThread.java::attach();
+					                    
+										ActivityManagerService.java::attachApplication()
+										
+										ActivityManagerService.java::attachApplicationLock()  //先去查找ProcessRecord，在startProcessLocked()中创建的ProcessRecord. 两者通过startSeq绑定
+										                    
+						                    ---- 通过IApplicationThread 调到 App process 
+										    ActivityThread.java::ApplicationThread::bindApplication()
+															
+							                ActivityThread.java::H::handleMessage(BIND_APPLICATION); 
+															
+											ActivityThread.java::handleBindApplication()
+															                    
+										        ActivityThread.java::getPackageInfoNoCheck()  //返回的LoadedApk 对象。
+																				
+													ActivityThread.java::getPackageInfo()     //  return new LoadedApk              
+															
+															    //Instrumentation ii = new ApplicationPackageManager(null, getPackageManager()).getInstrumentationInfo(data.instrumentationName, 0);
+															    // ii 里面包含了apk 报名，以及位置信息。 后面会有ClassLoader来加载apk信息。
+															
+															    // final ClassLoader cl = instrContext.getClassLoader();   ClassLoader 是PathClassLoader
+                                                                // mInstrumentation = (Instrumentation)
+                                                                // cl.loadClass(data.instrumentationName.getClassName()).newInstance();
+															    // 通过ClassLoader 加载Instrumentation 这个是很关键哈，但是先记录一下，等后续补充。它里面有ClassLoader 后续的Java类都是由它加载。
+															
+													LoadedApk.java::makeApplication()  //data.info.makeApplication(data.restrictedBackupMode, null);
+															                                       // 重点的地方到了， 初始化Application了， 看了这么久终于追到跟应用层有一丢丢关系的地方了
+																			
+															                    ContextImpl appContext = ContextImpl.createAppContext(mActivityThread, this); //在这里创建了Application的Context，从此和Application相生相伴
+																				    Instrumentation.java::newApplication()                                    // 传入Application的Class全类名 
+																					                                                                          //（如果在AndroidManifest.xml显示注明继承的Application，则加载的是显示Application，否则是 android.app.application）
+													    Instrumentation.java::callApplicationOnCreate()
+                                                                                    Application.java::onCreate()				          // 终于走到Application onCreate回调函数。
+                                                                																										
+										                        
+										-----------  初始化App process Application完成，回到system_server 进程继续执行。
+										ActivityStackSupervisor.java::attachApplicationLocked()  // ActivityDisplay 需要追一下。从注释中看，一个ActivityDisplay中有多个ActivityStack
+										  
+										    ActivityStackSupervisor.java::realStartActivityLocked() // 和标识1 走到一起 
+											    
+												ClientTransacation.java::addCallback(LaunchActivityItem)   // LaunchActivityItem 会添加到 mActivityCallbacks中，scheduleTransaction 调用到远端的app进程中，会调用此callback 
+												
+												ClientLifecycleManager.java::scheduleTransaction()
+												     
+												    IApplicationThread::scheduleTransaction()   // AMS 和 app 进行Activity 流程交互是通过 ClientTransacation & ActivityLifecycleItem。
+                                                                                                // ActivityLifecycleItem 的子类有ResumeActivityItem  PauseActivityItem   StopActivityItem 	DestoryActivityItem
+                                                                                                // 具体过程是  ClientTransacation是具体业务的实体， ResumeActivityItem 是此次ClientTransation 动作类型。 
+												                                                // AMS 调用app 的IApplicationThread 将 ClientTransacation 传输给App进程中ApplicationThread 进行处理											
+		
+		
+		                                ---------- 从system_server 进程调用到app process ---
+										ActivityThread.java::ApplicationThread::scheduleTransaction();
+												
+											ActivityThread.java::H:handleMessage()
+												    
+												TransactionExecutor.java::execute()
+													    
+													TransactionExecutor.java::executeCallbacks()
+														
+														LaunchActivityItem.java::execute() // 初始化 ActivityClientRecord
+															    
+															ActivityThread.java::handleLaunchActivity()  //  会提前初始化EGL 上下文
+																    
+																ActivityThread.java::performLaunchActivity()
+																	    
+																	ActivityThread.java::createBaseContextForActivity() // displayId 追溯到 AMS侧的ActivityRecord IApplicationToken.Stub  ActivityStack和 DisplayId 一一对应
+														          
+		                                                                Activity.java::attach() // 从这里开始 Activity 需要跟 WindowManagerService 进行交互， 
+																		                        // 这里先着重Activity 和 AMS之间的流程， Activity和 WMS 会令讲。
+																	Instrumentation.java::callActivityOnCreate()
+																			
+																		Activity.java::performCreate()
+																		  
+																		    
+		                                    
+						
+						                            TransactionExecutor.java::executeLifecycleState()
+													
+													    ResumeActivityItem.java::execute()
+														   
+														    ActivityThread.java::handleResumeActivity()  // wm.addView(decor, l); 将DecorView添加到WMS
+															
+															    Activity.java::performResume()           // Activity 初始化完成。
+													              		
+															    
+															     
+															

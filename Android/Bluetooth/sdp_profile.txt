@@ -1,0 +1,36 @@
+这里简单的记录一下下面协议栈 调用sdp 服务的流程，先挖坑，后续再填坑
+
+此处以 a2dp 流程为例子。 a2dp会调用sdp来查找服务，然后返回查找结果。
+
+a2dp_api.cc::A2DP_FindService()
+
+    sdp_api.cc::SDP_ServiceSearchAttributeRequest()   // 这里将a2dp_sdp_cback 作为callback函数传入，当 sdp流程走完，信息去后回调这个方法
+	    
+		sdp_main.cc::sdp_conn_originate    //初始化一个 tCONN_CB
+		    l2c_api.cc::L2CA_ConnectReq()  //建立 L2CAP 信道，返回一个CID (channl id)
+			                               // 将cid 赋值给p_ccb->connection_id， 后续会通过cid来查找这个 tCONN_CB
+										   // p_ccb->con_flags |= SDP_FLAGS_IS_ORIG;  此处这个flag 表示我们是client的发起者，后续l2cap 信道建立后需要向server发起请求
+	    
+		sdp_main.cc::sdp_connect_cfm()     // l2cap 回调流程  Connect  Configure， 由我们发起的流程会收到 Confirm
+		    l2c_api.cc::L2CA_ConfigReq()
+			
+		sdp_main.cc::sdp_config_cfm()
+		    sdp_discovery.cc::sdp_disc_connected()  //  if (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)
+			
+			    sdp_discovery.cc::process_service_search_attr_rsp()  // 从 tCONN_CB.p_db 拼装 查询信息
+			
+			        l2c_api.cc::L2CA_DataWrite()  //发送消息给对端
+					     
+						sdp_main.cc::sdp_data_ind()  // 收到对端的回复
+						   
+						    sdp_discovery.cc::sdp_disc_server_rsp() // 这里对应三种不同的trasaction   ServiceSearch   ServiceAttribute   ServiceSearchAttribute
+							
+							    sdp_discovery.cc::process_service_search_attr_rsp()  // 如果数据不完整会继续取回数据的
+								
+								    sdp_main.cc::sdp_disconnect(SDP_SUCCESS)
+									    
+										l2c_api.cc::L2CA_DisconnectReq()
+									
+									    a2dp_api.cc::a2dp_sdp_cback()   到此 sdp 流程结束
+									
+									    

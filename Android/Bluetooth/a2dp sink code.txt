@@ -1,0 +1,88 @@
+A2dpSinkService.java::start()
+    A2dpMediaBrowserService.java::onCreate()
+	
+	A2dpSinkStateMachine.java::make()
+	    A2dpSinkStateMachine.java::A2dpSinkStateMachine()
+		    btif_av.cc::Init()    
+			    btif_a2dp_sink.cc::btif_a2dp_sink_init()  // 初始化 btif_a2dp_sink_cb    设置 btif_a2dp_sink_state = BTIF_A2DP_SINK_RUNNING
+                    
+	            btif_core.cc::btif_enable_service(BTA_A2DP_SINK_SERVICE_ID)
+				    btif_dm.ccbtif_dm_execute_service_request(BTIF_DM_ENABLE_SERVICE, BTA_A2DP_SINK_SERVICE_ID)
+				        btif_dm.cc::btif_in_execute_service_request()
+						    btif_av.cc::btif_av_sink_execute_service()   // "persist.bt.a2dp.delay_report_sink"  开启a2dp  audio的delay report
+							                                             //     tBTA_AV_FEAT features = BTA_AV_FEAT_NO_SCO_SSPD | BTA_AV_FEAT_RCCT |
+                                                                         //                             BTA_AV_FEAT_METADATA | BTA_AV_FEAT_VENDOR |
+                                                                         //                             BTA_AV_FEAT_ADV_CTRL | BTA_AV_FEAT_RCTG |
+                                                                         //                             BTA_AV_FEAT_BROWSE | feat_delay_rpt;
+																		 
+					            bta_av_api.cc::BTA_AvEnable(BTA_SEC_AUTHENTICATE, features, bta_av_sink_callback);  //
+								    bta_sys_register(BTA_ID_AV, &bta_av_reg);  // 注册 bta_av_main.cc 中的 bta_av_hdl_event 为消息处理的总入口
+									
+									    bta_av_main.cc::bta_av_api_enable()   // 出现 bta 层的结构体对象  tBTA_AV_CB  bta_av_cb
+										                                      //  bta_av_cb.p_cback  为 btif_av.cc中的 bta_av_sink_callback
+																			  
+						                    btif_av.cc::bta_av_sink_callback(BTA_AV_ENABLE_EVT)
+											    btif_av.cc::btif_av_handle_bta_av_event(AVDT_TSEP_SRC, BTA_AV_ENABLE_EVT)  // nothing to do
+				                
+								btif_av.cc::RegisterAllBtaHandles()  //允许有6个对端
+								    bta_av_api.cc::BTA_AvRegister(BTA_AV_CHNL_AUDIO, "Advanced Audio Sink", [0-5], bta_av_sink_media_callback, UUID_SERVCLASS_AUDIO_SINK)  // 生成0-5 共6个 sep
+									    
+										bta_av_main.cc::bta_av_api_register()   // bta_av_cb.p_scb[6]   bta 层 tBTA_AV_SCB 代表一个 scb   AvdtpStreamConfig  在配置 sep
+										                                        // p_scb 中app_id 是上面分配的从[0-5]
+																				
+																				//  p_scb->p_act_tbl = (const tBTA_AV_ACT*)bta_av_a2dp_action;
+																				//  p_scb->p_cos = &bta_av_a2dp_cos;
+																				
+																				//  AvdtpStreamConfig avdtp_stream_config  avdtp_stream_config.p_sink_data_cback = bta_av_sink_data_cback;  // Data 数据的上抛
+																				//  AvdtpStreamConfig avdtp_stream_config  avdtp_stream_config.p_avdt_ctrl_cback = &bta_av_proc_stream_evt;
+																				
+                                            bta_av_co.cc::bta_av_co_audio_init()    //  avdtp_stream_config.cfg.num_codec = 1;
+                                                                                  	//  avdtp_stream_config.cfg.psc_mask = AVDT_PSC_TRANS;
+                                                                                    //
+																					//
+											
+										    avdt_api.cc::AVDT_CreateStream()    //AVDT_NUM_LINKS(6)   AVDT_NUM_SEPS(6)  一对连接有6个 SEP。Master & Slave 支持6组连接
+											
+											a2dp_api.cc::A2DP_AddRecord()       // 增加sdp 记录
+											bta_sys_conn.cc:bta_sys_add_uuid()  // 增加EIR 信息
+											
+											    btif_av.cc::bta_av_sink_callback(BTA_AV_REGISTER_EVT)
+										            btif_av.cc::btif_av_handle_bta_av_event()
+													    btif_av.cc::BtaHandleRegistered() 
+														
+														
+A2dpSinkService.java::connect()
+    A2dpSinkStateMachine.java::Disconnected::processMessage(CONNECT)
+	    com_android_bluetooth_a2dp_sink.cc::connectA2dpNative()
+		    btif_av.cc::sink_connect_src() 
+			    btif_av.cc::connect_int(UUID_SERVCLASS_AUDIO_SINK)
+				    btif_av.cc::BtifAvSink::FindOrCreatePeer()
+
+					    btif_av.cc::BtifAvPeer::BtifAvPeer()  // 内部有一个BtifAvStateMachine状态机，  StateIdle StateOpening  StateOpened  StateStarted  StateClosing,  初始状态是 StateIdle
+						    btif_av.cc::BtifAvStateMachine::StateIdle::OnEnter()
+							    
+						btif_av.cc::BtifAvStateMachine::StateIdle::ProcessEvent(BTIF_AV_CONNECT_REQ_EVT)
+							bta_av_api.cc::BTA_AvOpen(BTA_AV_API_OPEN_EVT)     //  在bta_av_main.cc::bta_av_hdl_event  4608-4616  走 bta_av_main.cc::bta_av_sm_execute
+							                                                   // 大于 4616 且 小于 4668  走 bta_av_ssm.cc::bta_av_ssm_execute()
+							    bta_av_ssm.cc::bta_av_ssm_execute()     //此时的 p_scb->state 应该是初始状态，  event = event-4617. 表示从BTA_AV_API_OPEN_EVT开始
+								                                        // 然后 p_scb->state 为BTA_AV_OPENING_SST   此处的p_scb->p_act_tbl 是在 bta_av_main.cc::bta_av_api_register() 中初始化的
+																		//  p_scb->p_act_tbl 指向 bta_av_aact.cc::bta_av_a2dp_action 方法指针数组
+								
+                                    bta_av_aact.cc::bta_av_do_disc_a2dp()
+                                        a2dp_api.cc::A2DP_FindService()   // 通过sdp方发现对端  a2dp服务。 传入的bta_av_a2dp_sdp_cback ，当sdp 取回数据，且数据解析完成会回调此方法。
+                                                                          // 此处涉及到sdp profile流程，可以参考sdp 流程。此处我们只关注 a2dp的流程，最终sdp发现的信息会回调给bta_av_a2dp_sdp_cback
+                                        
+                                            sdp_api.cc::SDP_ServiceSearchAttributeRequest(a2dp_sdp_cback)  // sdp 查询的结果会回调此方法
+
+a2dp_api.cc::a2dp_sdp_cback()
+    bta_av_aact.cc::bta_av_a2dp_sdp_cback(true, )
+
+    											
+								    
+						    
+					    
+		    
+	    
+											
+											    
+									  

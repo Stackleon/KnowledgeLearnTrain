@@ -1,0 +1,317 @@
+Activity 调试信息
+
+dumpsys activity starter     // 打印 ActivityStarter 信息
+
+dumpsys activity containers  // 打印 ActivityDisplay & ActivityStack & ActivityRecord 之间的关系
+
+dumpsys activity activities  // 打印 ActivityDisplay & ActivityStack & ActivityRecord 之间的详细信息
+
+
+
+// 在Display id = 2 的屏幕上启动Setting应用
+am start -n com.android.settings/.Settings --display 2 
+
+ulixs114@ubuntu:~$ adb shell dumpsys activity activities
+ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+Display #0 (activities from top to bottom):  //第一块屏幕下的Activity Stack  从dump中来看一共有两个ActivityStack.
+   // 这是主屏下的ActivityStack
+
+  Stack #3: type=standard mode=fullscreen   // 等同于 mFocusStack.
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+    Task id #32
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{e8917e0 #32 A=com.android.documentsui U=0 StackId=3 sz=1}
+      userId=0 effectiveUid=u0a13 mCallingUid=u0a13 mUserSetupComplete=true mCallingPackage=com.android.documentsui
+      affinity=com.android.documentsui
+      intent={dat=//com.android.documentsui.launchControl#1615843988265 flg=0x10080000 cmp=com.android.documentsui/.files.FilesActivity}
+      realActivity=com.android.documentsui/.files.FilesActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{1261a67 u0 com.android.documentsui/.files.FilesActivity t32}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      mRootProcess=ProcessRecord{ce59a99 3752:com.android.documentsui/u0a13}   //3752 表示 当前进程的PID
+      stackId=3
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=550514 (inactive for 5s)
+      * Hist #0: ActivityRecord{1261a67 u0 com.android.documentsui/.files.FilesActivity t32}
+          packageName=com.android.documentsui processName=com.android.documentsui
+          launchedFromUid=10013 launchedFromPackage=com.android.documentsui userId=0
+          app=ProcessRecord{ce59a99 3752:com.android.documentsui/u0a13}
+          Intent { dat=//com.android.documentsui.launchControl#1615843988265 flg=0x10080000 cmp=com.android.documentsui/.files.FilesActivity }
+          frontOfTask=true task=TaskRecord{e8917e0 #32 A=com.android.documentsui U=0 StackId=3 sz=1}
+          taskAffinity=com.android.documentsui
+          realActivity=com.android.documentsui/.files.FilesActivity
+          baseDir=/system/priv-app/DocumentsUI/DocumentsUI.apk
+          dataDir=/data/user/0/com.android.documentsui
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={160dpi always-compat} labelRes=0x7f10006c icon=0x7f0e0000 theme=0x7f1100bd
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=undefined} s.5}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 608) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=standard} s.5}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 608) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=standard} s.5}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff1a73e8
+           backgroundColor=fffafafa
+           statusBarColor=ff254fae
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=1 lastLaunchTime=-6s104ms
+          haveState=false icicle=null
+          state=RESUMED stopped=false delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=true sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_SHOWN
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+          waitingVisible=false nowVisible=true lastVisibleTime=-5s413ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{e8917e0 #32 A=com.android.documentsui U=0 StackId=3 sz=1}
+        Run #0: ActivityRecord{1261a67 u0 com.android.documentsui/.files.FilesActivity t32}
+
+    mResumedActivity: ActivityRecord{1261a67 u0 com.android.documentsui/.files.FilesActivity t32}  // 当前在 mFocusStack中最上面的Activity， 可以理解为在主屏上显示的应用。
+
+  Stack #0: type=home mode=fullscreen    // Launcher 应用单独在mHomeStack中
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #29
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{42194ec #29 A=com.android.car.carlauncher U=0 StackId=0 sz=2}
+      userId=0 effectiveUid=u0a22 mCallingUid=0 mUserSetupComplete=true mCallingPackage=null
+      affinity=com.android.car.carlauncher
+      intent={act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.android.car.carlauncher/.CarLauncher}
+      realActivity=com.android.car.carlauncher/.CarLauncher
+      autoRemoveRecents=false isPersistable=true numFullscreen=2 activityType=2
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{e9f7c5b u0 com.android.car.carlauncher/.CarLauncher t29}, ActivityRecord{cea44c6 u0 com.android.car.carlauncher/.AppGridActivity t29}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      mRootProcess=ProcessRecord{83480b5 1835:com.android.car.carlauncher/u0a22}
+      stackId=0
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_UNRESIZEABLE mSupportsPictureInPicture=false isResizeable=false lastActiveTime=550045 (inactive for 6s)
+      * Hist #1: ActivityRecord{cea44c6 u0 com.android.car.carlauncher/.AppGridActivity t29}
+          packageName=com.android.car.carlauncher processName=com.android.car.carlauncher
+          launchedFromUid=10022 launchedFromPackage=com.android.car.carlauncher userId=0
+          app=ProcessRecord{83480b5 1835:com.android.car.carlauncher/u0a22}
+          Intent { cmp=com.android.car.carlauncher/.AppGridActivity }
+          frontOfTask=false task=TaskRecord{42194ec #29 A=com.android.car.carlauncher U=0 StackId=0 sz=2}
+          taskAffinity=com.android.car.carlauncher
+          realActivity=com.android.car.carlauncher/.AppGridActivity
+          baseDir=/system/priv-app/CarLauncher/CarLauncher.apk       // ClassLoader 从哪里读取dex文件
+          dataDir=/data/user/0/com.android.car.carlauncher
+          stateNotNeeded=false componentSpecified=true mActivityType=home
+          compat={160dpi always-compat} labelRes=0x7f0c002a icon=0x7f070084 theme=0x7f0d016f
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=undefined} s.5}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 608) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=home} s.5}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 608) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=home} s.5}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff212121
+           backgroundColor=ff303030
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-9s405ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=1056]
+          state=STOPPED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_NOT_SHOWN
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=home
+          waitingVisible=false nowVisible=false lastVisibleTime=-8s362ms
+          connections=[]
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+      * Hist #0: ActivityRecord{e9f7c5b u0 com.android.car.carlauncher/.CarLauncher t29}
+          packageName=com.android.car.carlauncher processName=com.android.car.carlauncher
+          launchedFromUid=0 launchedFromPackage=null userId=0
+          app=ProcessRecord{83480b5 1835:com.android.car.carlauncher/u0a22}
+          Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.android.car.carlauncher/.CarLauncher }
+          frontOfTask=true task=TaskRecord{42194ec #29 A=com.android.car.carlauncher U=0 StackId=0 sz=2}
+          taskAffinity=com.android.car.carlauncher
+          realActivity=com.android.car.carlauncher/.CarLauncher
+          baseDir=/system/priv-app/CarLauncher/CarLauncher.apk
+          dataDir=/data/user/0/com.android.car.carlauncher
+          stateNotNeeded=false componentSpecified=false mActivityType=home
+          compat={160dpi always-compat} labelRes=0x7f0c002a icon=0x7f070084 theme=0x1030006
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=undefined} s.5}
+           mOverrideConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 608) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=home} s.5}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 608) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=home} s.5}
+          OverrideConfiguration={0.0 ?mcc?mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mWindowingMode=undefined mActivityType=home}}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=null primaryColor=ff222222
+           backgroundColor=ff000000
+           statusBarColor=ff000000
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-8m51s23ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=484]
+          state=STOPPED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_REMOVED
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=home
+          waitingVisible=false nowVisible=false lastVisibleTime=-7m58s445ms
+          resizeMode=RESIZE_MODE_UNRESIZEABLE
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{42194ec #29 A=com.android.car.carlauncher U=0 StackId=0 sz=2}
+        Run #1: ActivityRecord{cea44c6 u0 com.android.car.carlauncher/.AppGridActivity t29}
+        Run #0: ActivityRecord{e9f7c5b u0 com.android.car.carlauncher/.CarLauncher t29}
+
+    mLastPausedActivity: ActivityRecord{cea44c6 u0 com.android.car.carlauncher/.AppGridActivity t29}
+	
+	
+Display #1 (activities from top to bottom):
+Display #2 (activities from top to bottom):
+
+  Stack #1: type=standard mode=fullscreen
+  isSleeping=false
+  mBounds=Rect(0, 0 - 0, 0)
+
+    Task id #30
+    mBounds=Rect(0, 0 - 0, 0)
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{e90234a #30 A=com.android.settings.root U=0 StackId=1 sz=1}
+      userId=0 effectiveUid=1000 mCallingUid=2000 mUserSetupComplete=true mCallingPackage=null
+      affinity=com.android.settings.root
+      intent={flg=0x10000000 cmp=com.android.settings/.Settings}
+      origActivity=com.android.settings/.Settings
+      realActivity=com.android.settings/.Settings
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 activityType=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{cc1ceba u0 com.android.settings/.Settings t30}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      mRootProcess=ProcessRecord{51cb7d 1439:com.android.settings/1000}
+      stackId=1
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true lastActiveTime=546985 (inactive for 9s)
+      * Hist #0: ActivityRecord{cc1ceba u0 com.android.settings/.Settings t30}
+          packageName=com.android.settings processName=com.android.settings
+          launchedFromUid=2000 launchedFromPackage=null userId=0
+          app=ProcessRecord{51cb7d 1439:com.android.settings/1000}
+          Intent { flg=0x10000000 cmp=com.android.settings/.Settings }
+          frontOfTask=true task=TaskRecord{e90234a #30 A=com.android.settings.root U=0 StackId=1 sz=1}
+          taskAffinity=com.android.settings.root
+          realActivity=com.android.settings/.Settings
+          baseDir=/system/priv-app/Settings/Settings.apk
+          dataDir=/data/user_de/0/com.android.settings
+          stateNotNeeded=false componentSpecified=true mActivityType=standard
+          compat={160dpi always-compat} labelRes=0x7f120b48 icon=0x7f08011e theme=0x7f1301dc
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 ?mcc?mnc [en_US] ldltr sw720dp w1920dp h584dp 160dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=Rect(0, 0 - 1920, 608) mWindowingMode=fullscreen mActivityType=undefined} s.5}
+           mOverrideConfig={0.0 ?mcc?mnc ?localeList ?layoutDir sw540dp w1442dp h540dp 213dpi lrg long land ?uimode ?night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 720) mAppBounds=Rect(0, 0 - 1920, 720) mWindowingMode=fullscreen mActivityType=standard}}
+          CurrentConfiguration={1.0 ?mcc?mnc [en_US] ldltr sw540dp w1442dp h540dp 213dpi lrg long land car night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1920, 720) mAppBounds=Rect(0, 0 - 1920, 720) mWindowingMode=fullscreen mActivityType=standard} s.5}
+          taskDescription: label="null" icon=null iconResource=0 iconFilename=/data/system_ce/0/recent_images/30_activity_icon_1615843702999.png primaryColor=fff5f5f5
+           backgroundColor=fffafafa
+           statusBarColor=ffe0e0e0
+           navigationBarColor=ffffffff
+          launchFailed=false launchCount=1 lastLaunchTime=-7m56s236ms
+          haveState=false icicle=null
+          state=PAUSED stopped=false delayedResume=false finishing=false     //这里跟上面的区别，state都是PAUSED， 但是stopped是false.
+          keysPaused=false inHistory=true visible=true sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_SHOWN
+          fullscreen=true noDisplay=false immersive=false launchMode=2
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=standard
+          waitingVisible=false nowVisible=true lastVisibleTime=-7m55s687ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{e90234a #30 A=com.android.settings.root U=0 StackId=1 sz=1}
+        Run #0: ActivityRecord{cc1ceba u0 com.android.settings/.Settings t30}
+
+    mLastPausedActivity: ActivityRecord{cc1ceba u0 com.android.settings/.Settings t30}  //Setting 虽然显示，但是并不被Focus。
+
+  ResumedActivity: ActivityRecord{1261a67 u0 com.android.documentsui/.files.FilesActivity t32}
+  mFocusedStack=ActivityStack{e33a15e stackId=3 type=standard mode=fullscreen visible=true translucent=false, 1 tasks} mLastFocusedStack=ActivityStack{e33a15e stackId=3 type=standard mode=fullscreen visible=true translucent=false, 1 tasks}
+  mCurTaskIdForUser={0=32}
+  mUserStackInFront={}
+  
+  displayId=2 stacks=1
+  displayId=1 stacks=0
+  displayId=0 stacks=2
+   mHomeStack=ActivityStack{b0913d8 stackId=0 type=home mode=fullscreen visible=false translucent=true, 1 tasks}
+  
+  isHomeRecentsComponent=false  KeyguardController:
+    mKeyguardShowing=false
+    mAodShowing=false
+    mKeyguardGoingAway=false
+    mOccluded=false
+    mDismissingKeyguardActivity=null
+    mDismissalRequested=false
+    mVisibilityTransactionDepth=0
+  LockTaskController
+    mLockTaskModeState=NONE
+    mLockTaskModeTasks=
+    mLockTaskPackages (userId:packages)=
+      u0:[]
+
+
+--------------------------------------------
+ActivityDisplay.java  // Exactly one of these classes per Display in the system. Capable of holding zero or more attached ActivityStacks
+
+
+
+这个方法会去获取displayId, displayId 后续会传到WindowMangaerService 。所以先向上追一下什么时候将ActivityRecord 和 Display进行绑定的。
+ActivityThread.java::createBaseContextForActivity()
+
+
+
+ActivityStackSupervisor.java::setWindowManager()
+ 
+ 
+ 
+ 
+9.0 中
+ActivityStack  需和 ActivityDisplay 进行绑定， ActivityStack也是由 ActivityDisplay::createStack
+                                                ActivityDisplay::createStack();
+
+												
+猜测 1：
+            ActivityStackSupervisor::getValidLaunchStackOnDisplay()
+		
+        ActivityStarter::computeStackFocus()
+	
+	ActivityStarter::setTaskFromReuseOrCreateNewTask()	    
+	
+	
+	
+	
+	
+----------------------------------------
+在ActivityThread.java::createBaseContextForActivity() 方法中
+
+1 setprop debug.second-display.pkg com.android.settings 
+2 从Launcher中启动Settings，会报下面的Crash信息。
+
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: FATAL EXCEPTION: main
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: Process: com.android.settings, PID: 7990
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: android.view.WindowManager$BadTokenException: Unable to add window -- token android.os.BinderProxy@ef8093 is not valid; is your activity running?
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.view.ViewRootImpl.setView(ViewRootImpl.java:798)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.view.WindowManagerGlobal.addView(WindowManagerGlobal.java:356)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.view.WindowManagerImpl.addView(WindowManagerImpl.java:93)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:3906)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:51)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:145)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:70)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1816)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:193)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:6718)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)
+03-15 22:05:44.653  7990  7990 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:858)
+
+RootCase:
+//TODO 需要调查
+
+
+
+
+
+----------------------------------------
