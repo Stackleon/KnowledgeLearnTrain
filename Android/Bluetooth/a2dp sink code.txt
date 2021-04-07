@@ -36,10 +36,14 @@ A2dpSinkService.java::start()
 																				//  AvdtpStreamConfig avdtp_stream_config  avdtp_stream_config.p_sink_data_cback = bta_av_sink_data_cback;  // Data 数据的上抛
 																				//  AvdtpStreamConfig avdtp_stream_config  avdtp_stream_config.p_avdt_ctrl_cback = &bta_av_proc_stream_evt;
 																				
-                                            bta_av_co.cc::bta_av_co_audio_init()    //  avdtp_stream_config.cfg.num_codec = 1;
+                                            bta_ar.cc::bta_ar_reg_avdt(bta_av_conn_cback, BTA_ID_AV)
+											    avdt_api.cc::AVDT_Register(bta_ar_avdt_cback)
+												    avdt_scb.cc::avdt_scb_init()   // 初始化ccb中的 scb (ccb 对应上层的 p_scb   其中 ccb scb 代表一个sep)
+											        avdt_ccb.cc::avdt_ccb_init()   // 初始化 avdtp_cb, 配置方法函数组 avdtp_cb.p_ccb_act = avdt_ccb_action;
+											    
+											
+											bta_av_co.cc::bta_av_co_audio_init()    //  avdtp_stream_config.cfg.num_codec = 1;
                                                                                   	//  avdtp_stream_config.cfg.psc_mask = AVDT_PSC_TRANS;
-                                                                                    //
-																					//
 											
 										    avdt_api.cc::AVDT_CreateStream()    //AVDT_NUM_LINKS(6)   AVDT_NUM_SEPS(6)  一对连接有6个 SEP。Master & Slave 支持6组连接
 											
@@ -64,9 +68,13 @@ A2dpSinkService.java::connect()
 						btif_av.cc::BtifAvStateMachine::StateIdle::ProcessEvent(BTIF_AV_CONNECT_REQ_EVT)
 							bta_av_api.cc::BTA_AvOpen(BTA_AV_API_OPEN_EVT)     //  在bta_av_main.cc::bta_av_hdl_event  4608-4616  走 bta_av_main.cc::bta_av_sm_execute
 							                                                   // 大于 4616 且 小于 4668  走 bta_av_ssm.cc::bta_av_ssm_execute()
-							    bta_av_ssm.cc::bta_av_ssm_execute()     //此时的 p_scb->state 应该是初始状态，  event = event-4617. 表示从BTA_AV_API_OPEN_EVT开始
-								                                        // 然后 p_scb->state 为BTA_AV_OPENING_SST   此处的p_scb->p_act_tbl 是在 bta_av_main.cc::bta_av_api_register() 中初始化的
-																		//  p_scb->p_act_tbl 指向 bta_av_aact.cc::bta_av_a2dp_action 方法指针数组
+							    bta_av_ssm.cc::bta_av_ssm_execute()     // 当前 p_scb->state 为 BTA_AV_INIT_SST(0) , 对应状态迁移表为 bta_av_ssm.cc::bta_av_sst_init  
+								                                        // event = BTA_AV_API_OPEN_EVT(4617) - BTA_AV_API_OPEN_EVT(4617). 取状态迁移表的第0位
+																		// 执行动作为 BTA_AV_DO_DISC(0) 关联 bta_av_aact.cc::bta_av_a2dp_action 函数表的第0位
+								                                        // 迁移 p_scb->state 到 BTA_AV_OPENING_SST(2)  
+																		
+																		// ps: 此处的p_scb->p_act_tbl 是在 bta_av_main.cc::bta_av_api_register() 中初始化的
+																		//     p_scb->p_act_tbl 指向 bta_av_aact.cc::bta_av_a2dp_action 方法指针数组
 								
                                     bta_av_aact.cc::bta_av_do_disc_a2dp()
                                         a2dp_api.cc::A2DP_FindService()   // 通过sdp方发现对端  a2dp服务。 传入的bta_av_a2dp_sdp_cback ，当sdp 取回数据，且数据解析完成会回调此方法。
@@ -75,14 +83,110 @@ A2dpSinkService.java::connect()
                                             sdp_api.cc::SDP_ServiceSearchAttributeRequest(a2dp_sdp_cback)  // sdp 查询的结果会回调此方法
 
 a2dp_api.cc::a2dp_sdp_cback()
-    bta_av_aact.cc::bta_av_a2dp_sdp_cback(true, )
+    bta_av_aact.cc::bta_av_a2dp_sdp_cback(true)     //  p_msg->hdr.event = BTA_AV_SDP_DISC_OK_EVT (4628); 
+	                                                //  保存对端的  avdtp 版本
+	    bta_av_ssm.cc::bta_av_ssm_execute()         //  BTA_AV_SDP_DISC_OK_EVT(4628)  小于 BTA_AV_API_ENABLE_EVT(4653) 大于 BTA_AV_AVRC_NONE_EVT(4616)
+		                                            //  当前 p_scb->state 为 BTA_AV_OPENING_SST(2)  对应状态迁移表为 bta_av_ssm.cc::bta_av_sst_opening
+		                                            //  event = (BTA_AV_SDP_DISC_OK_EVT(4628) - BTA_AV_API_OPEN_EVT (4617) 取状态迁移表的第11位
+												    //  执行动作为 BTA_AV_CONNECT_REQ(13) 关联 bta_av_aact.cc::bta_av_a2dp_action 函数表的第13位
+												    //  迁移 p_scb->state 到 BTA_AV_OPENING_SST(2)
+		bta_av_aact.cc::bta_av_connect_req()
+            
+    		avdt_api.cc::AVDT_ConnectReq(&bta_av_proc_stream_evt)		//  bta_av_proc_stream_evt 这个函数指针会赋值给  AvdtpCcb->p_conn_cback						
+								                                        // 此方法是初始化 avdtp signaling connection
+																		
+		        avdt_ccb.cc::avdt_ccb_alloc_by_channel_index()    // 在下层有一个 AvdtpCb , 其有个AvdtpCcb[6] 和BTA层的 tBTA_AV_SCB 是一一对应的关系。两者用 p_scb->hdi联系
+				
+				avdt_ccb.cc::avdt_ccb_event(AVDT_CCB_API_CONNECT_REQ_EVT)   // 此时的 AvdtpCcb (Channel Control block) state 为 AVDT_CCB_IDLE_ST (0)走 avdt_ccb_st_idle  状态表
+				                                                            // AvdtpCcb 迁移状态到 AVDT_CCB_OPENING_ST
+																			// AVDT_CCB_SET_CONN(30)  AVDT_CCB_CHAN_OPEN(0) 对应的函数表 avdt_ccb.cc::avdt_ccb_action
+																			
+					avdt_ccb_act.cc::avdt_ccb_set_conn()        // 将上面传下来的callback 函数指针赋值给 AvdtpCcb->p_conn_cback。
+					                                            // 设置Security Level
+																
+					avdt_ccb_act.cc::avdt_ccb_chan_open()
+					
+					    avdt_ad.cc::avdt_ad_open_req(AVDT_CHAN_SIG,p_ccb, NULL, AVDT_INT);  // 引入 AvdtpTransportChannel
+						                                            
+						    l2c_api.cc::L2CA_ConnectReq(AVDT_PSM)   // p_tbl->state = AVDT_AD_ST_CONN;  将
+							                                        // 此处走 AVDT_INT分支; 接下走 AVDTP 与 L2CAP 交互的过程，就是 Connect / Configure
+							                                        // 交互的方法是在 avdt_api.cc::AVDT_Register 注册进去的。
+							    
+								avdt_l2c.cc::avdt_l2c_connect_cfm_cback()
+								
+                                    btm_sec.cc::btm_sec_mx_access_request(&avdt_sec_check_complete_orig)	// Security 安全认证校验。 Security问题我们单独开篇章
+                                                                                                            // 这里只需要知道 Security 完成后会回调	avdt_l2c.cc::avdt_sec_check_complete_orig							
+							        
+									    avdt_l2c.cc::avdt_sec_check_complete_orig()  // p_tbl->state = AVDT_AD_ST_CFG;
+									    
+										    l2c_api.cc::L2CA_ConfigReq()
+										
+					            avdt_l2c.cc::avdt_l2c_config_cfm_cback()
+                                      
+                                    avdt_ad.cc::avdt_ad_tc_open_ind()	    // p_tbl->state = AVDT_AD_ST_OPEN;
+                                                                            // evt.err_param = AVDT_INT;					
+					                    l2c_api.cc::L2CA_SetTxPriority()    //设置发送的优先级
+										    
+			                            avdt_ccb.cc::avdt_ccb_event(AVDT_CCB_LL_OPEN_EVT)  //  当前AvdtpCcb->state 为 AVDT_CCB_OPENING_ST(1), 对应状态迁移表为 avdt_ccb.cc::avdt_ccb_st_open
+                                                                                           //  event= AVDT_CCB_LL_OPEN_EVT(25), 取状态迁移表的第25位
+                                                                 						   //  执行动作为 AVDT_CCB_SND_CMD(24), AVDT_CCB_LL_OPENED(34), 取avdt_ccb.cc::avdt_ccb_action 函数表的第24行，第34行
+																						   //  迁移AvdtpCcb-state 到 AVDT_CCB_OPEN_ST
+                                            																						   
+		                                    avdt_ccb_act.cc::avdt_ccb_snd_cmd()
 
-    											
-								    
-						    
-					    
+											avdt_ccb_act.cc::avdt_ccb_ll_opened()
+											
+											    bta_av_aact.cc::bta_av_proc_stream_evt((0, p_ccb->peer_addr, AVDT_CONNECT_IND_EVT, &avdt_ctrl, p_ccb->BtaAvScbIndex())
+	                                                bta_sys_main.cc::bta_sys_sendmsg(BTA_AV_AVDT_CONNECT_EVT)   
+													    bta_av_ssm.cc::bta_av_ssm_execute()                     // BTA_AV_AVDT_CONNECT_EVT(4646)  小于 BTA_AV_API_ENABLE_EVT(4653)
+													                                                            // 当前 p_scb->state 为 BTA_AV_OPENING_SST(2), 对应状态迁移表为 bta_av_sst_opening
+																						                        // event = BTA_AV_AVDT_CONNECT_EVT(4646) - BTA_AV_API_OPEN_EVT(4617). 取状态迁移表的第29位
+																						                        // 执行动作为 BTA_AV_DISCOVER_REQ(20), 取bta_av_aact.cc::bta_av_a2dp_action 函数表的第20位
+																						                        // 迁移 p_scb->state 到 BTA_AV_OPENING_SST
+																												
+													
+													bta_av_main.cc::bta_av_conn_cback()             // p_msg->hdr.layer_specific = AVDT_CONNECT_IND_EVT
+													    bta_sys_main.cc::bta_sys_sendmsg()    
+														    bta_av_ssm.cc::bta_av_ssm_execute()     // BTA_AV_SIG_CHG_EVT  (4658) 大于 BTA_AV_API_ENABLE_EVT(4653)
+															                                        // event = BTA_AV_SIG_CHG_EVT(4658) - BTA_AV_API_ENABLE_EVT(4653), 取 bta_av_main.cc::bta_av_nsm_act 函数表的第5位
+															    
+																bta_av_act.cc::
+																
+																bta_av_sig_chg()     // 从bta_av_cb->lcb[6] 中分配 lcb 													
+// 此处为突出 avdtp 初始化流程																						  
+	    bta_av_aact.cc::bta_av_discover_req()
 		    
-	    
+			avdt_api.cc::AVDT_DiscoverReq()     // 这里将 bta_av_proc_stream_evt 作为回调的函数
+														
+				avdt_ccb.cc::avdt_ccb_event(AVDT_CCB_API_DISCOVER_REQ_EVT)	// AVDT_CCB_API_DISCOVER_REQ_EVT			
+				                                                            // 当前AvdtpCcb->state 为 AVDT_CCB_OPEN_ST(2), 对应状态迁移表为 avdt_ccb.cc::avdt_ccb_st_open
+                                                                            // event = AVDT_CCB_API_DISCOVER_REQ_EVT(0),  取状态迁移表的第0位
+                                                                            // 执行动作为 AVDT_CCB_SND_DISCOVER_CMD(11) AVDT_CCB_SND_CMD(24), 取avdt_ccb.cc::avdt_ccb_action 函数表的第11位，第24位																	
+													                        // 迁移AvdtpCcb->state 到 AVDT_CCB_OPEN_ST(2)
+																			
+					avdt_ccb_act.cc::avdt_ccb_snd_discover_cmd()            // 将bta_av_aact.cc::bta_av_proc_stream_evt 赋值给 p_ccb->proc_cback
+					
+					    avdt_msg.cc::avdt_msg_send_cmd(AVDT_SIG_DISCOVER)       // fixed_queue_enqueue(p_ccb->cmd_q, p_buf); 将要发送的内容加入 p_ccb->cmd 队列
+						    
+							avdt_ccb.cc::avdt_ccb_event(AVDT_CCB_SENDMSG_EVT)   // 当前AvdtpCcb->state 为 AVDT_CCB_OPENING_ST(1), 对应状态迁移表为 avdt_ccb.cc::avdt_ccb_st_open
+                                                                                // 	event= AVDT_CCB_LL_OPEN_EVT(19), 取状态迁移表的第19位  
+                                                                                //  执行动作为 AVDT_CCB_SND_MSG(25), 取avdt_ccb.cc::avdt_ccb_action 函数表的第25位
+                                                                                // 迁移AvdtpCcb->state 到 AVDT_CCB_OPEN_ST(2) 																				
+                                
+					avdt_ccb_act.cc::avdt_ccb_snd_cmd()	        // 从p_ccb->cmd_q 队列中取出指令
+                        avdt_msg.cc::avdt_msg_send()            // 组装指令，加头
+						    avdt_ad.cc::avdt_ad_write_req()  
+							    l2c_api.cc::L2CA_DataWrite()    // 通过l2cap 发送数据
+								
+					                avdt_l2c.cc::avdt_l2c_data_ind_cback()
+									    avdt_ad.cc::avdt_ad_tc_data_ind()
+										    avdt_msg.cc::avdt_msg_ind()
+					                
+                            						
+                        					
+													
+
+														                                            
 											
 											    
 									  
